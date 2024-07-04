@@ -1,6 +1,9 @@
 import sqlite3
 from config import DATABASE
 
+new_column_name = 'photo'
+new_column_type = 'TEXT'
+
 skills = [ (_,) for _ in (['Python', 'SQL', 'API', 'Telegram'])]
 statuses = [ (_,) for _ in (['На этапе проектирования', 'В процессе разработки', 'Разработан. Готов к использованию.', 'Обновлен', 'Завершен. Не поддерживается'])]
 
@@ -13,11 +16,13 @@ class DB_Manager:
         with conn:
             conn.execute('''CREATE TABLE IF NOT EXISTS projects 
                         (project_id INTEGER PRIMARY KEY,
-                        user_id INTEGER,
+                        user_id TEXT,
                         project_name TEXT NOT NULL,
                         description TEXT,
                         url TEXT,
                         status_id INTEGER,
+                        skill_name INTEGER,
+                        FOREING KEY (skill_name) REFERENCES skills(skill_name),
                         FOREIGN KEY (status_id) REFERENCES status(status_id))''')     
             conn.commit()
 
@@ -40,6 +45,32 @@ class DB_Manager:
                         FOREIGN KEY (project_id) REFERENCES projects(project_id),
                         FOREIGN KEY (skill_name) REFERENCES skills(skill_name))''')
             conn.commit()
+        
+    conn = sqlite3.connect(DATABASE) 
+    cursor = conn.cursor()
+    table_name = 'projects'
+    alter_query = f"ALTER TABLE {table_name} ADD COLUMN {new_column_name} {new_column_type}"
+    cursor.execute(alter_query)
+
+
+    sql = '''INSERT INTO projects 
+             (project_id,
+             user_id, 
+             project_name,
+             description,
+             url, 
+             status_id,
+             skill_name) values(?, ?, ?, ?, ?, ?, ?)'
+    data = [ 
+        (1, 'halva', 'pokemon' , 'Проэкт в котором вы заводите своего виртуального питомца , с которым вам предстоит подружиться и пройти путь вражды с другими покемонами пока вас не свергнут, если такое произайдет то вам придется найти нового покемона и проти путь заного.','no','Разработан', 'NOT')
+        (2,'halva','translator','В этои проэкте представлен удобный переводчик в телеграмме','no','Не поддерживается', 'NOT')
+        (3,'halva', 'tables','no','no','В процессе разработки','NOT')]
+    with con:
+        con.executemany(sql, data)
+    
+    
+    
+    
 
 
     def __executemany(self, sql, data):
@@ -47,7 +78,7 @@ class DB_Manager:
         with conn:
             conn.executemany(sql, data)
             conn.commit()
-    
+
     def __select_data(self, sql, data = tuple()):
         conn = sqlite3.connect(self.database)
         with conn:
@@ -102,7 +133,7 @@ class DB_Manager:
     def get_skills(self):
         return self.__select_data(sql='SELECT * FROM skills')
     
-    def get_project_skills(self, project_name):
+ def get_project_skills(self, project_name):
         res = self.__select_data(sql='''SELECT skill_name FROM projects 
 JOIN project_skills ON projects.project_id = project_skills.project_id 
 JOIN skills ON skills.skill_id = project_skills.skill_id 
@@ -111,11 +142,11 @@ WHERE project_name = ?''', data = (project_name,) )
     
     def get_project_info(self, user_id, project_name):
         sql = """
-SELECT project_name, description, url, status_name FROM projects 
-JOIN status ON
-status.status_id = projects.status_id
-WHERE project_name=? AND user_id=?
-"""
+        SELECT project_name, description, url, status_name FROM projects 
+        JOIN status ON
+        status.status_id = projects.status_id
+        WHERE project_name=? AND user_id=?
+        """
         return self.__select_data(sql=sql, data = (project_name, user_id))
 
 
@@ -134,6 +165,8 @@ WHERE project_name=? AND user_id=?
         sql = """DELETE FROM skills 
             WHERE skill_id = ? AND project_id = ? """
         self.__executemany(sql, [(skill_id, project_id)])
+
+    
 
 
 if __name__ == '__main__':
